@@ -16,14 +16,14 @@ class Crawler:
         self.max_count = max_count
         self.links = [self.start_url]
 
-    async def main(self):
+    async def worker(self):
         # self.redis_conn = await aioredis.create_connection(('localhost', 6379))
 
         async with aiohttp.ClientSession() as session:
             for link in self.links:
                 print(link)
                 async with session.get(link) as resp:
-                    new_links = await self.get_links(await resp.text())
+                    new_links, soup = await self.get_links(await resp.text())
                     # print(new_links)
                     for n in new_links:
                         if n not in self.links:
@@ -31,17 +31,26 @@ class Crawler:
                     await asyncio.sleep(1 / self.rps)
             pprint(self.links)
 
+    @staticmethod
+    async def clean_text(soup):
+        [script.extract() for script in soup(["script", "style"])]
+        text = soup.get_text()
+        lines = [line.strip() for line in text.splitlines()]
+        chunks = [phrase.strip() for line in lines for phrase in line.split("  ")]
+        text = '\n'.join(chunk for chunk in chunks if chunk)
+        return text
+
     async def get_links(self, html):
         soup = BeautifulSoup(html, 'lxml')
         await asyncio.sleep(0)
         absolute_links = list(map(lambda x: x if x.startswith(('http://', 'https://')) else urljoin(self.start_url, x),
                                   [i.get('href', '') for i in soup.find_all('a')]))
         links = [urldefrag(x)[0] for x in absolute_links if x.startswith(self.domain)]
-        return links
+        return links, soup
 
 
 if __name__ == '__main__':
     # with open('shit/index.html') as file:
     #     asyncio.run(Crawler(start_url=START_URL, rps=RPS).get_links(file))
 
-    asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())
+    asyncio.run(Crawler(start_url=START_URL, rps=RPS).worker())
