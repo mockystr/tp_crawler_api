@@ -15,10 +15,10 @@ class Crawler:
         self.rps = rps
         self.max_count = max_count
         self.links = [self.start_url]
-        self.es = Elasticsearch()
 
     async def worker(self):
         async with aiohttp.ClientSession() as session:
+            es = Elasticsearch()
             for i, link in enumerate(self.links):
                 print(link)
                 async with session.get(link) as resp:
@@ -28,24 +28,25 @@ class Crawler:
                         if n not in self.links:
                             self.links.append(n)
 
-                    print(await self.es.ping())
-                    ret = await self.es.create(index='emirloh',
-                                               doc_type='tptest',
-                                               id=i,
-                                               body={'text': 'asdasdas', 'url': link},
-                                               timeout=None)
+                    # print(await es.ping())
+                    ret = await es.create(index='qweqweqweqwewe',
+                                          doc_type='tptest',
+                                          id=i,
+                                          body={'text': await self.clean_text(soup), 'url': link},
+                                          timeout=None)
                     assert ret['result'] == 'created'
 
                 await asyncio.sleep(1 / self.rps)
             pprint(self.links)
 
     @staticmethod
-    def clean_text(soup):
+    async def clean_text(soup):
         [script.extract() for script in soup(["script", "style"])]
-        # await asyncio.sleep(0)
+        await asyncio.sleep(0)
         text = soup.get_text()
         lines = [line.strip() for line in text.splitlines()]
         chunks = [phrase.strip() for line in lines for phrase in line.split("  ")]
+        await asyncio.sleep(0)
         text = '\n'.join(chunk for chunk in chunks if chunk)
         return text
 
@@ -63,7 +64,6 @@ if __name__ == '__main__':
     #     asyncio.run(Crawler(start_url=START_URL, rps=RPS).get_links(file))
 
     asyncio.run(Crawler(start_url=START_URL, rps=RPS).worker())
-
 
 """
 /Users/emirnavruzov/.local/share/virtualenvs/tp_asyncio-qsY2M8-g/bin/python3.7 /Users/emirnavruzov/Documents/technopark/tp_asyncio/shit/es.py
