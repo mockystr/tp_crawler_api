@@ -3,6 +3,7 @@ import json
 import aiopg
 from utils import dsn
 from pprint import pprint
+from aioelasticsearch import Elasticsearch
 
 
 async def index(request):
@@ -10,20 +11,20 @@ async def index(request):
     return web.Response(text=json.dumps(r))
 
 
-async def search_people(request):
-    async with aiopg.create_pool(dsn) as pool:
-        async with pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                name = request._rel_url.query.get('q')
-                limit = request._rel_url.query.get('limit')
-                offset = request._rel_url.query.get('offset')
+async def search(request):
+    es = Elasticsearch()
 
-                if name:
-                    select_query = 'SELECT * FROM "testing" WHERE "name"=%s LIMIT %s OFFSET %s'
-                    await cur.execute(select_query, (name, limit or "null", offset or "null"))
-                else:
-                    select_query = 'SELECT * FROM "testing" LIMIT %s OFFSET %s'
-                    await cur.execute(select_query, (limit, offset))
+    q = request._rel_url.query.get('q')
+    limit = request._rel_url.query.get('limit', -1)
+    offset = request._rel_url.query.get('offset', 0)
 
-                r = await cur.fetchall()
-                return web.Response(text=json.dumps(r))
+    print(q)
+
+    body = {'from': offset, 'size': limit}
+    if q:
+        body['query'] = {'match': {'text': q}}
+
+    print('body', body)
+    res = await es.search(index='qweqweqweqwewe', doc_type='tptest',
+                          body=body)
+    return web.Response(text=json.dumps(res))
