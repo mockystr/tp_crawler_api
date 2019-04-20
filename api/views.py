@@ -28,7 +28,7 @@ async def search(request):
                     doc_type='crawler',
                     query=body, ) as scan_res:
         res_formated, count = await format_search(scan_res, limit, offset)
-        text = {'count': count, 'results': res_formated}
+        text = {'total_hits': count, 'count': len(res_formated), 'results': res_formated}
         return web.Response(text=json.dumps(text))
 
 
