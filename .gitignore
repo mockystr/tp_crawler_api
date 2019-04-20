@@ -1,5 +1,11 @@
 .idea/
+<<<<<<< HEAD
 __pycache__/
 *.pyc
 shit/
 test/
+=======
+shit/
+__pycache__/
+*.pyc/
+>>>>>>> api
