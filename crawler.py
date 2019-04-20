@@ -16,6 +16,12 @@ class Crawler:
         self.max_count = max_count
         self.links = [self.start_url]
 
+    # todo initialize_index
+    async def initialize_index(self):
+        pass
+
+    # todo serialize api
+    # todo parallel coroutines
     async def worker(self):
         async with aiohttp.ClientSession() as session:
             es = Elasticsearch()
@@ -28,13 +34,15 @@ class Crawler:
                         if n not in self.links:
                             self.links.append(n)
 
-                    # print(await es.ping())
-                    ret = await es.create(index='qweqweqweqwewe',
-                                          doc_type='tptest',
+                    ret = await es.create(index=str(self.start_url),
+                                          doc_type='crawler',
                                           id=i,
                                           body={'text': await self.clean_text(soup), 'url': link},
                                           timeout=None)
                     assert ret['result'] == 'created'
+
+                if i > self.max_count:
+                    break
 
                 await asyncio.sleep(1 / self.rps)
             pprint(self.links)
@@ -60,9 +68,6 @@ class Crawler:
 
 
 if __name__ == '__main__':
-    # with open('shit/index.html') as file:
-    #     asyncio.run(Crawler(start_url=START_URL, rps=RPS).get_links(file))
-
     asyncio.run(Crawler(start_url=START_URL, rps=RPS).worker())
 
 """
