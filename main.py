@@ -1,9 +1,7 @@
+from settings import RPS, START_URL
 import asyncio
-
-
-async def main():
-    pass
-
+from crawler import Crawler
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    # asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())
+    asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())

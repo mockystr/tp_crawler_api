@@ -22,7 +22,6 @@ class Crawler:
         await self.initialize_index()
         await self.worker()
 
-    # todo initialize_index
     async def initialize_index(self):
         es = Elasticsearch()
         created = False
@@ -58,8 +57,6 @@ class Crawler:
             await es.close()
             return created
 
-    # todo serialize api
-    # todo parallel coroutines
     async def worker(self):
         es = Elasticsearch()
 
@@ -110,29 +107,3 @@ class Crawler:
 
 if __name__ == '__main__':
     asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())
-
-"""
-/Users/emirnavruzov/.local/share/virtualenvs/tp_asyncio-qsY2M8-g/bin/python3.7 /Users/emirnavruzov/Documents/technopark/tp_asyncio/shit/es.py
-Traceback (most recent call last):
-  File "/Users/emirnavruzov/Documents/technopark/tp_asyncio/shit/es.py", line 22, in <module>
-    asyncio.run(Tmp().go())
-  File "/anaconda3/lib/python3.7/asyncio/runners.py", line 43, in run
-    return loop.run_until_complete(main)
-  File "/anaconda3/lib/python3.7/asyncio/base_events.py", line 584, in run_until_complete
-    return future.result()
-  File "/Users/emirnavruzov/Documents/technopark/tp_asyncio/shit/es.py", line 16, in go
-    print(await self.es.search())
-  File "/Users/emirnavruzov/.local/share/virtualenvs/tp_asyncio-qsY2M8-g/lib/python3.7/site-packages/aioelasticsearch/transport.py", line 338, in perform_request
-    ignore=ignore, timeout=timeout, headers=headers,
-  File "/Users/emirnavruzov/.local/share/virtualenvs/tp_asyncio-qsY2M8-g/lib/python3.7/site-packages/aioelasticsearch/transport.py", line 258, in _perform_request
-    ignore=ignore, timeout=timeout, headers=headers,
-  File "/Users/emirnavruzov/.local/share/virtualenvs/tp_asyncio-qsY2M8-g/lib/python3.7/site-packages/aioelasticsearch/connection.py", line 103, in perform_request
-    timeout=timeout or self.timeout,
-  File "/Users/emirnavruzov/.local/share/virtualenvs/tp_asyncio-qsY2M8-g/lib/python3.7/site-packages/aiohttp/client.py", line 417, in _request
-    with timer:
-  File "/Users/emirnavruzov/.local/share/virtualenvs/tp_asyncio-qsY2M8-g/lib/python3.7/site-packages/aiohttp/helpers.py", line 568, in __enter__
-    raise RuntimeError('Timeout context manager should be used '
-RuntimeError: Timeout context manager should be used inside a task
-Unclosed client session
-client_session: <aiohttp.client.ClientSession object at 0x10bc058d0>
-"""
