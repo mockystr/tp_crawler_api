@@ -12,19 +12,58 @@ class Crawler:
     def __init__(self, start_url, rps=10, max_count=1000):
         self.start_url = start_url
         self.domain = '{uri.scheme}://{uri.netloc}/'.format(uri=urlparse(self.start_url))
+        self.index_name = ''.join([i for i in self.start_url
+                                   if i not in ('[', '"', '*', '\\\\', '\\', '<', '|', ',', '>', '/', '?', ':')])
         self.rps = rps
         self.max_count = max_count
         self.links = [self.start_url]
 
+    async def main(self):
+        await self.initialize_index()
+        await self.worker()
+
     # todo initialize_index
     async def initialize_index(self):
-        pass
+        es = Elasticsearch()
+        created = False
+        settings = {
+            "settings": {
+                "number_of_shards": 1,
+                "number_of_replicas": 0
+            },
+            "mappings": {
+                "members": {
+                    "dynamic": "strict",
+                    "properties": {
+                        "url": {
+                            "type": "text"
+                        },
+                        "text": {
+                            "type": "text"
+                        }
+                    }
+                }
+            }
+        }
+        try:
+            if await es.indices.exists(self.index_name):
+                await es.indices.delete(self.index_name)
+
+            await es.indices.create(index=self.index_name, ignore=400, body=settings)
+            print('Created Index')
+            created = True
+        except Exception as ex:
+            print(str(ex))
+        finally:
+            await es.close()
+            return created
 
     # todo serialize api
     # todo parallel coroutines
     async def worker(self):
+        es = Elasticsearch()
+
         async with aiohttp.ClientSession() as session:
-            es = Elasticsearch()
             for i, link in enumerate(self.links):
                 print(link)
                 async with session.get(link) as resp:
@@ -34,7 +73,7 @@ class Crawler:
                         if n not in self.links:
                             self.links.append(n)
 
-                    ret = await es.create(index=str(self.start_url),
+                    ret = await es.create(index=self.index_name,
                                           doc_type='crawler',
                                           id=i,
                                           body={'text': await self.clean_text(soup), 'url': link},
@@ -45,6 +84,8 @@ class Crawler:
                     break
 
                 await asyncio.sleep(1 / self.rps)
+
+            await es.close()
             pprint(self.links)
 
     @staticmethod
@@ -68,7 +109,7 @@ class Crawler:
 
 
 if __name__ == '__main__':
-    asyncio.run(Crawler(start_url=START_URL, rps=RPS).worker())
+    asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())
 
 """
 /Users/emirnavruzov/.local/share/virtualenvs/tp_asyncio-qsY2M8-g/bin/python3.7 /Users/emirnavruzov/Documents/technopark/tp_asyncio/shit/es.py
