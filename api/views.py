@@ -16,7 +16,7 @@ async def search(request):
     es = Elasticsearch()
 
     q = request._rel_url.query.get('q')
-    limit = int(request._rel_url.query.get('limit', -1))
+    limit = int(request._rel_url.query.get('limit', 0))
     offset = int(request._rel_url.query.get('offset', 0))
 
     body = {}
@@ -35,4 +35,6 @@ async def search(request):
 async def format_search(res, limit, offset):
     res_source = [i['_source'] async for i in res]
     count = len(res_source)
-    return res_source[offset:min(limit + offset, count)], count
+    if limit:
+        return res_source[offset: min(limit + offset, count)], count
+    return res_source[offset:], count

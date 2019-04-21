@@ -1,11 +1,10 @@
-import asyncio
-import aiohttp
 from bs4 import BeautifulSoup
 from settings import RPS, START_URL
 from urllib.parse import urljoin, urlparse, urldefrag
 from pprint import pprint
-from aioelasticsearch import Elasticsearch
-from time import time
+from elasticsearch import Elasticsearch
+from time import time, sleep
+import requests
 
 
 class Crawler:
@@ -19,11 +18,11 @@ class Crawler:
         self.sleep_time = 1 / self.rps
         self.links = [self.start_url]
 
-    async def main(self):
-        await self.initialize_index()
-        [await self.worker() for _ in range(5)]
+    def main(self):
+        self.initialize_index()
+        self.worker()
 
-    async def initialize_index(self):
+    def initialize_index(self):
         es = Elasticsearch()
         created = False
         settings = {
@@ -46,59 +45,53 @@ class Crawler:
             }
         }
         try:
-            if await es.indices.exists(self.index_name):
-                await es.indices.delete(self.index_name)
+            if es.indices.exists(self.index_name):
+                es.indices.delete(self.index_name)
 
-            await es.indices.create(index=self.index_name, ignore=400, body=settings)
+            es.indices.create(index=self.index_name, ignore=400, body=settings)
             created = True
         except Exception as ex:
             print(str(ex))
         finally:
-            await es.close()
             return created
 
-    async def worker(self):
+    def worker(self):
         es = Elasticsearch()
 
-        async with aiohttp.ClientSession() as session:
-            for i, link in enumerate(self.links):
-                print(link)
-                async with session.get(link) as resp:
-                    new_links, soup = await self.get_links(await resp.text())
+        for i, link in enumerate(self.links):
+            # print(link)
+            resp = requests.get(link)
+            new_links, soup = self.get_links(resp.text)
 
-                    for n in new_links:
-                        if n not in self.links:
-                            self.links.append(n)
+            for n in new_links:
+                if n not in self.links:
+                    self.links.append(n)
 
-                    ret = await es.create(index=self.index_name,
-                                          doc_type='crawler',
-                                          id=i * int(time() * 1_000_000),
-                                          body={'text': await self.clean_text(soup), 'url': link},
-                                          timeout=None)
-                    assert ret['result'] == 'created'
+            ret = es.create(index=self.index_name,
+                            doc_type='crawler',
+                            id=i * int(time() * 1_000_000),
+                            body={'text': self.clean_text(soup), 'url': link},
+                            timeout=None)
+            assert ret['result'] == 'created'
 
-                if i > self.max_count:
-                    break
+            if i > self.max_count:
+                break
 
-                await asyncio.sleep(self.sleep_time)
+            sleep(self.sleep_time)
 
-            await es.close()
-            pprint(self.links)
+        pprint(self.links)
 
     @staticmethod
-    async def clean_text(soup):
+    def clean_text(soup):
         [script.extract() for script in soup(["script", "style"])]
-        await asyncio.sleep(0)
         text = soup.get_text()
         lines = [line.strip() for line in text.splitlines()]
         chunks = [phrase.strip() for line in lines for phrase in line.split("  ")]
-        await asyncio.sleep(0)
         text = '\n'.join(chunk for chunk in chunks if chunk)
         return text
 
-    async def get_links(self, html):
+    def get_links(self, html):
         soup = BeautifulSoup(html, 'lxml')
-        await asyncio.sleep(0)
         absolute_links = list(map(lambda x: x if x.startswith(('http://', 'https://')) else urljoin(self.start_url, x),
                                   [i.get('href', '') for i in soup.find_all('a')]))
         links = [urldefrag(x)[0] for x in absolute_links if x.startswith(self.domain)]
@@ -106,6 +99,18 @@ class Crawler:
 
 
 if __name__ == '__main__':
+    # start_url = START_URL
+    # domain = '{uri.scheme}://{uri.netloc}/'.format(uri=urlparse(self.start_url))
+    # index_name = ''.join([i for i in self.start_url
+    #                            if i not in ('[', '"', '*', '\\\\', '\\', '<', '|', ',', '>', '/', '?', ':')])
+    # rps = RPS
+    # max_count = 1000
+    # sleep_time = 1 / rps
+    # links = [start_url]
+
     t0 = time()
-    asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())
+
+    # main()
+    Crawler(start_url=START_URL, rps=RPS).main()
+    # 69.67483377456665
     print(time() - t0)
