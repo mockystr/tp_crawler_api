@@ -1,6 +1,6 @@
 from aiohttp import web
 import json
-from utils import dsn
+from utils import dsn, json_response
 from pprint import pprint
 from aioelasticsearch import Elasticsearch
 from settings import index_name
@@ -9,7 +9,7 @@ from aioelasticsearch.helpers import Scan
 
 async def index(request):
     r = {'status': 'success', 'text': 'Hello, im index handler'}
-    return web.Response(text=json.dumps(r))
+    return json_response(r)
 
 
 async def search(request):
@@ -20,8 +20,8 @@ async def search(request):
         limit = int(request._rel_url.query.get('limit', 0))
         offset = int(request._rel_url.query.get('offset', 0))
     except:
-        return web.Response(text=json.dumps({'response': 'wrong query'}))
-    
+        return json_response({'response': 'wrong query'})
+
     body = {}
     if q:
         body['query'] = {'match': {'text': q}}
@@ -30,10 +30,9 @@ async def search(request):
                     index=index_name,
                     doc_type='crawler',
                     query=body, ) as scan_res:
-        print(scan_res.total)
         res_formated, count = await format_search(scan_res, limit, offset)
         text = {'total_hits': count, 'count': len(res_formated), 'results': res_formated}
-        return web.Response(text=json.dumps(text))
+        return json_response(text)
 
 
 async def format_search(res, limit, offset):

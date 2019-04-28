@@ -24,8 +24,7 @@ class Crawler:
         self.max_count = max_count
         self.sleep_time = 1 / self.rps
         self.set_links = set()
-        self.links_queue = asyncio.Queue()
-        self.links_list = [self.start_url]
+        self.links = asyncio.Queue()
         self.tmp_id = 0
 
     async def initialize_index(self):
@@ -64,74 +63,63 @@ class Crawler:
 
     async def main(self):
         await self.initialize_index()
-        await self.get_all_links()
-        # await self.links.put(self.start_url)
+        await self.links.put(self.start_url)
 
-        for el in self.links_list:
-            await self.links_queue.put(el)
-
-        async with asyncpool.AsyncPool(asyncio.get_event_loop(), num_workers=5, name="CrawlerPool",
+        async with asyncpool.AsyncPool(asyncio.get_event_loop(), num_workers=10, name="CrawlerPool",
                                        logger=logging.getLogger("CrawlerPool"),
                                        worker_co=self.worker, max_task_time=300,
                                        log_every_n=10) as pool:
-            for link in self.links_list:
+            link = await self.links.get()
+            await pool.push(link)
+            # сделал этот слип для того, чтобы дать время воркеру закинуть в очередь ссылки
+            # иначе будет эксепшн (скинул внизу)
+            # буду рад, если расскажешь, как убрать этот слип, чтоб все работало
+            await asyncio.sleep(0.3)
+
+
+            # даже с слипами начал быстро качать
+            # 15.77086591720581
+
+            # без пула было 49 секунд
+
+            while True:
+                try:
+                    link = await self.links.get()
+                except:
+                    await asyncio.sleep(0.2)
+                    try:
+                        link = await self.links.get()
+                    except:
+                        break
+
                 await pool.push(link)
+                await asyncio.sleep(self.sleep_time)
+                # await asyncio.sleep(0.5)
 
-            # link = await self.links.get()
-            # await pool.push(link)
+        pprint(self.links)
 
-            # while True:
-            #     try:
-            #         link = await self.links.get()
-            #         while link is None:
-            #             await asyncio.sleep(0.2)
-            #         await pool.push(link)
-            #     except StopDownloading:
-            #         break
-        pprint(self.links_list)
-
-    async def get_all_links(self):
-        async with aiohttp.ClientSession() as session:
-            for i, link in enumerate(self.links_list):
-                print(link)
-                async with session.get(link) as resp:
-                    new_links, soup = await self.get_links(await resp.text())
-
-                    for n in new_links:
-                        if n not in self.links_list:
-                            self.links_list.append([n, soup])
-
-                    await asyncio.sleep(self.sleep_time)
-
-    async def worker(self, link, soup):
+    async def worker(self, link):
         es = Elasticsearch()
+        print(link)
 
-        # async with aiohttp.ClientSession() as session:
-            # async with session.get(link) as resp:
-                # new_links, soup = await self.get_links(await resp.text())
-                # self.set_links.add(link)
-                #
-                # is_new_links = False
-                # for n in new_links:
-                #     if n not in self.set_links:
-                #         if not is_new_links:
-                #             is_new_links = True
-                #
-                #         await self.links.put(n)
-                #         self.set_links.add(n)
-                #
-                # if not is_new_links:
-                #     raise StopDownloading("Stop")
+        async with aiohttp.ClientSession() as session:
+            async with session.get(link) as resp:
+                new_links, soup = await self.get_links(await resp.text())
+                self.set_links.add(link)
 
-        self.tmp_id += 1
-        await es.create(index=self.index_name,
-                        doc_type='crawler',
-                        id=self.tmp_id,
-                        body={'text': await self.clean_text(soup), 'url': link},
-                        timeout=None)
+                for n in new_links:
+                    if n not in self.set_links:
+                        await self.links.put(n)
+                        self.set_links.add(n)
 
-        await asyncio.sleep(self.sleep_time)
-        await es.close()
+                self.tmp_id += 1
+                await es.create(index=self.index_name,
+                                doc_type='crawler',
+                                id=self.tmp_id,
+                                body={'text': await self.clean_text(soup), 'url': link},
+                                timeout=None)
+
+            await es.close()
 
     @staticmethod
     async def clean_text(soup):

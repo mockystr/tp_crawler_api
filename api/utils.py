@@ -1,9 +1,10 @@
-# database_settings = {
-#     'dbname': 'asynctest',
-#     'user': 'emirnavruzov',
-#     'password': 'qwe123',
-#     'host': '127.0.0.1'
-# }
+from aiohttp import web
+import json
+
+
+def json_response(data):
+    return web.Response(text=json.dumps(data), headers={'content-type': 'application/json'})
+
 
 dsn = "dbname={} user={} password={} host= {}".format(
     'asynctest',
