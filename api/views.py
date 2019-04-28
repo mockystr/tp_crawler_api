@@ -16,9 +16,12 @@ async def search(request):
     es = Elasticsearch()
 
     q = request._rel_url.query.get('q')
-    limit = int(request._rel_url.query.get('limit', 0))
-    offset = int(request._rel_url.query.get('offset', 0))
-
+    try:
+        limit = int(request._rel_url.query.get('limit', 0))
+        offset = int(request._rel_url.query.get('offset', 0))
+    except:
+        return web.Response(text=json.dumps({'response': 'wrong query'}))
+    
     body = {}
     if q:
         body['query'] = {'match': {'text': q}}
@@ -27,6 +30,7 @@ async def search(request):
                     index=index_name,
                     doc_type='crawler',
                     query=body, ) as scan_res:
+        print(scan_res.total)
         res_formated, count = await format_search(scan_res, limit, offset)
         text = {'total_hits': count, 'count': len(res_formated), 'results': res_formated}
         return web.Response(text=json.dumps(text))

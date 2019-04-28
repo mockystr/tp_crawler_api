@@ -21,7 +21,7 @@ async def initialize_index():
             "number_of_shards": 1,
             "number_of_replicas": 0
         },
-        "mappings": {
+        "mapping": {
             "members": {
                 "dynamic": "strict",
                 "properties": {
@@ -52,7 +52,7 @@ async def worker():
     es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
     async with aiohttp.ClientSession() as session:
         for i, link in enumerate(links):
-            # print(link)
+            print(link)
             async with session.get(link) as resp:
                 new_links, soup = await get_links(await resp.text())
 
