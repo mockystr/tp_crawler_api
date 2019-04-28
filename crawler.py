@@ -76,21 +76,20 @@ class Crawler:
             # буду рад, если расскажешь, как убрать этот слип, чтоб все работало
             await asyncio.sleep(0.3)
 
-
             # даже с слипами начал быстро качать
             # 15.77086591720581
 
             # без пула было 49 секунд
 
             while True:
-                try:
-                    link = await self.links.get()
-                except:
-                    await asyncio.sleep(0.2)
-                    try:
-                        link = await self.links.get()
-                    except:
-                        break
+                # try:
+                link = await self.links.get()
+                # except:
+                #     await asyncio.sleep(0.2)
+                #     try:
+                #         link = await self.links.get()
+                #     except:
+                #         break
 
                 await pool.push(link)
                 await asyncio.sleep(self.sleep_time)
@@ -145,3 +144,16 @@ if __name__ == '__main__':
     t0 = time()
     asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())
     print(time() - t0)
+
+# Traceback (most recent call last):
+#   File "/Users/emirnavruzov/Documents/technopark/tp_crawler_api/crawler.py", line 146, in <module>
+#     asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())
+#   File "/usr/local/Cellar/python/3.7.3/Frameworks/Python.framework/Versions/3.7/lib/python3.7/asyncio/runners.py", line 43, in run
+#     return loop.run_until_complete(main)
+#   File "/usr/local/Cellar/python/3.7.3/Frameworks/Python.framework/Versions/3.7/lib/python3.7/asyncio/base_events.py", line 584, in run_until_complete
+#     return future.result()
+#   File "/Users/emirnavruzov/Documents/technopark/tp_crawler_api/crawler.py", line 87, in main
+#     link = await self.links.get()
+#   File "/usr/local/Cellar/python/3.7.3/Frameworks/Python.framework/Versions/3.7/lib/python3.7/asyncio/queues.py", line 159, in get
+#     await getter
+# RuntimeError: Task <Task pending coro=<Crawler.main() running at /Users/emirnavruzov/Documents/technopark/tp_crawler_api/crawler.py:87> cb=[_run_until_complete_cb() at /usr/local/Cellar/python/3.7.3/Frameworks/Python.framework/Versions/3.7/lib/python3.7/asyncio/base_events.py:158]> got Future <Future pending> attached to a different loop
