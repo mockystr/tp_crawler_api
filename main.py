@@ -3,5 +3,9 @@ import asyncio
 from crawler import Crawler
 
 if __name__ == '__main__':
-    # asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())
+    # with pool ~14s
+    # best score was 11.5
+
+    # without pool ~50s
+    # sync 78s
     asyncio.run(Crawler(start_url=START_URL, rps=RPS).main())

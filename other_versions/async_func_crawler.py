@@ -9,12 +9,12 @@ from time import time
 
 
 async def main():
-    await initialize_index()
-    await worker()
+    es_obj = Elasticsearch([{'host': 'localhost', 'port': 9200}])
+    await initialize_index(es_obj)
+    await worker(es_obj)
 
 
-async def initialize_index():
-    es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
+async def initialize_index(es):
     created = False
     settings = {
         "settings": {
@@ -48,8 +48,7 @@ async def initialize_index():
         return created
 
 
-async def worker():
-    es = Elasticsearch([{'host': 'localhost', 'port': 9200}])
+async def worker(es):
     async with aiohttp.ClientSession() as session:
         for i, link in enumerate(links):
             print(link)
