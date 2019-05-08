@@ -10,16 +10,13 @@ import logging
 import asyncpool
 
 
-class StopDownloading(Exception):
-    pass
-
-
 class Crawler:
-    def __init__(self, start_url, rps=10, max_count=1000):
+    def __init__(self, start_url, loop, rps=10, max_count=1000):
         self.start_url = start_url
         self.domain = '{uri.scheme}://{uri.netloc}/'.format(uri=urlparse(self.start_url))
         self.index_name = ''.join([i for i in self.start_url
                                    if i not in ('[', '"', '*', '\\\\', '\\', '<', '|', ',', '>', '/', '?', ':')])
+        self.loop = loop
         self.rps = rps
         self.max_count = max_count
         self.sleep_time = 1 / self.rps
@@ -66,33 +63,34 @@ class Crawler:
             await self.links.put(self.start_url)
 
             async with aiohttp.ClientSession() as session:
-                async with asyncpool.AsyncPool(asyncio.get_event_loop(), num_workers=10,
+                async with asyncpool.AsyncPool(self.loop, num_workers=10,
                                                name="CrawlerPool", logger=logging.getLogger("CrawlerPool"),
                                                worker_co=self.worker) as pool:
                     link = await self.links.get()
                     await pool.push(link, es, session)
-                    await asyncio.sleep(0.2)
 
                     while True:
-                        try:
+                        if not self.links.empty():
                             link = await self.links.get()
-                        except:
-                            await asyncio.sleep(0.1)
-                            try:
-                                link = await self.links.get()
-                            except:
+                        else:
+                            await asyncio.sleep(0.2)
+                            if self.links.empty():
                                 break
+
+                            link = await self.links.get()
 
                         await asyncio.sleep(self.sleep_time)
                         await pool.push(link=link, es=es, session=session)
 
     async def worker(self, link, es, session):
         async with session.get(link) as resp:
-            new_links, soup = await self.get_links(await resp.text())
-            self.set_links.add(link)
-
             if self.tmp_id > self.max_count:
                 return
+            # print(self.tmp_id)
+            # print(link)
+
+            new_links, soup = await self.get_links(await resp.text())
+            self.set_links.add(link)
 
             self.tmp_id += 1
             for n in new_links:
@@ -125,8 +123,9 @@ class Crawler:
 
 
 if __name__ == '__main__':
+    this_loop = asyncio.get_event_loop()
     t0 = time()
-    c = Crawler(start_url=START_URL, rps=RPS, max_count=20)
-    asyncio.run(c.main())
+    c = Crawler(start_url=START_URL, loop=this_loop, rps=RPS, max_count=1000)
+    this_loop.run_until_complete(c.main())
     print(c.tmp_id)
     print(time() - t0)
