@@ -74,8 +74,6 @@ class Crawler:
                     await asyncio.sleep(0.2)
 
                     while True:
-                        if self.tmp_id > self.max_count:
-                            return
                         try:
                             link = await self.links.get()
                         except:
@@ -93,12 +91,15 @@ class Crawler:
             new_links, soup = await self.get_links(await resp.text())
             self.set_links.add(link)
 
+            if self.tmp_id > self.max_count:
+                return
+
+            self.tmp_id += 1
             for n in new_links:
                 if n not in self.set_links:
                     await self.links.put(n)
                     self.set_links.add(n)
 
-            self.tmp_id += 1
             await es.create(index=self.index_name,
                             doc_type='crawler',
                             id=self.tmp_id,
@@ -125,7 +126,7 @@ class Crawler:
 
 if __name__ == '__main__':
     t0 = time()
-    c = Crawler(start_url=START_URL, rps=RPS, max_count=1000)
+    c = Crawler(start_url=START_URL, rps=RPS, max_count=20)
     asyncio.run(c.main())
     print(c.tmp_id)
     print(time() - t0)
